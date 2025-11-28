@@ -13,3 +13,7 @@ def v2 : MyVector Nat 2 :=
   MyVector.cons 1 (MyVector.cons 2 MyVector.nil)
 
 #check v2
+
+structure MyStream (α : Type u) where
+  head : α
+  tail : Thunk (MyStream α)
