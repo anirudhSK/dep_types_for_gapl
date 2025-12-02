@@ -38,14 +38,20 @@ def MyVector.concat_many
   (start: Nat)
   (count: Nat)
   (vecs: Nat → MyVector α n)
-  : MyVector α (n * count) :=
+  : MyVector α (count * n) :=
     match count with
-    | 0 => by simp [Nat.mul_zero]; exact MyVector.nil
+    | 0 => by simp; exact MyVector.nil
     | count'+1 =>
         let first_batch: MyVector α n := vecs start
-        MyVector.concat
-          first_batch
-          (MyVector.concat_many (start + 1) count' vecs)
+        let tail_batches: MyVector α (count' * n) :=
+          MyVector.concat_many (start + 1) count' vecs
+        let result: MyVector α (count' * n + n) :=
+          by simp [Nat.add_comm]; exact
+          MyVector.concat first_batch tail_batches
+        let h: (count'+1) * n = count' * n + n :=
+          by simp [Nat.mul_succ,Nat.mul_comm]
+        by rw [h]; exact result
+
 
 
 def MyVector.singleton
@@ -140,11 +146,12 @@ def replicated_fold
 def rebatch_smaller_to_larger
   {T : Type u}
   {small_batch_size large_batch_size : Nat}
-  (h : large_batch_size % small_batch_size = 0)
+  (h : small_batch_size ∣ large_batch_size)
   (s : MyStream small_batch_size T)
   : MyStream large_batch_size T :=
     let factor: Nat := large_batch_size / small_batch_size
+    let hh: large_batch_size = factor * small_batch_size :=
+      by rw [Nat.mul_comm, Nat.mul_div_cancel']; exact h
     fun n =>
-      let num_smaller_batches: Nat := factor * n
-      let start := num_smaller_batches
-      let stop := num_smaller_batches + factor
+      let start := factor * n
+      by rw [hh]; exact MyVector.concat_many start factor s
