@@ -12,8 +12,11 @@ def v1 : MyVector Nat 3 :=
 def v2 : MyVector Nat 2 :=
   MyVector.cons 1 (MyVector.cons 2 MyVector.nil)
 
-#check v2
+def MyStream (batch_size : Nat) (T : Type u) := Nat → MyVector T batch_size
 
-structure MyStream (α : Type u) where
-  head : α
-  tail : Thunk (MyStream α)
+def batched_map {T U : Type u} (batch_size : Nat) (f : T → U) (s : MyStream batch_size T) : MyStream batch_size U :=
+  fun n =>
+    let batch := s n
+      match batch with
+      | MyVector.nil => MyVector.nil
+      | MyVector.cons x xs => MyVector.cons (f x) (batched_map batch_size f (fun m => xs))
