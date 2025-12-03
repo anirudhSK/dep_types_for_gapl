@@ -157,44 +157,44 @@ def rebatch_smaller_to_larger
   -- a latency-insensitive stream: a stream that might produce "no data" at some time steps
 def MyLIStream (T : Type u) := Nat → Option (MyVector T 1)
 
+-- We need an auxiliary function to find the next non-None time step in s, given a starting time step
+noncomputable def find_next_some
+  (start : Nat)
+  (s : MyLIStream T)
+  (h : ∀ start : Nat, ∃ pos : Nat, pos ≥ start ∧ (s pos).isSome)
+  : Nat × (MyVector T 1) :=
+    -- Find the next Some value starting from 'start'
+    -- We use Classical.choose to extract the witness from the existence proof
+    let pos := Classical.choose (h start)
+    let h_pos := Classical.choose_spec (h start)
+    match h_val : s pos with
+    | Option.none =>
+      -- This case is impossible given our hypothesis
+      absurd h_val (by sorry)
+    | Option.some v => (pos, v)
+
+-- Find the nth Some value by iterating n times
+noncomputable def find_nth_some
+  (n : Nat) -- the stream index
+  (current_pos : Nat) -- the current position in the LI stream
+  (s : MyLIStream T)
+  (h : ∀ start : Nat, ∃ pos : Nat, pos ≥ start ∧ (s pos).isSome)
+  : MyVector T 1 :=
+    match n with
+    | 0 =>
+        -- Find the first Some from current_pos
+        let (_, v) := find_next_some current_pos s h
+        v
+    | n' + 1 =>
+        -- Find the next Some, then continue searching
+        let (next_pos, _) := find_next_some current_pos s h
+        find_nth_some n' (next_pos + 1) s h
+
 -- convert a latency-insensitive stream to a normal stream by eliminating the "no data" time steps
--- there is a lot of variable shadowing in the code below between the outer 's' and inner 's'. TODO: need to fix this.
 noncomputable def li_to_normal_stream
   {T : Type u}
   (s : MyLIStream T)
   -- Key addition: proof that for every starting position, there exists a Some value at or after it
   (h : ∀ start : Nat, ∃ pos : Nat, pos ≥ start ∧ (s pos).isSome)
   : MyStream 1 T :=
-    -- for each time step n in the output stream,
-    -- we need to find the nth non-None (some) time step in the input LI stream,
-    -- so we need an auxiliary function to find the next non-None time step in s, given a starting time step
-    let rec find_next_some
-      (start : Nat)
-      (s : MyLIStream T)
-      : Nat × (MyVector T 1) :=
-        -- Find the next Some value starting from 'start'
-        -- We use Classical.choose to extract the witness from the existence proof
-        let pos := Classical.choose (h start)
-        let h_pos := Classical.choose_spec (h start)
-        match h_val : s pos with
-      | Option.none =>
-          -- This case is impossible given our hypothesis
-          absurd h_val (by sorry)
-      | Option.some v => (pos, v)
-
-    -- Find the nth Some value by iterating n times
-    let rec find_nth_some
-      (n : Nat) -- the stream index
-      (current_pos : Nat) -- the current position in the LI stream
-      (s : MyLIStream T)
-      : MyVector T 1 :=
-        match n with
-        | 0 =>
-            -- Find the first Some from current_pos
-            let (_, v) := find_next_some current_pos s
-            v
-        | n' + 1 =>
-            -- Find the next Some, then continue searching
-            let (next_pos, _) := find_next_some current_pos s
-            find_nth_some n' (next_pos + 1) s
-    fun n => find_nth_some n 0 s
+    fun n => find_nth_some n 0 s h
