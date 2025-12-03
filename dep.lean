@@ -171,6 +171,10 @@ def li_to_normal_stream
       (start : Nat)
       (s : MyLIStream T)
       : Nat × (MyVector T 1) :=
+        -- Find the next Some value starting from 'start'
+        -- We use Classical.choose to extract the witness from the existence proof
+        let pos := Classical.choose (h start)
+        let h_pos := Classical.choose_spec (h start)
         match s start with
         | Option.none => find_next_some (start + 1) s
         | Option.some v => (start, v)
