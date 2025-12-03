@@ -207,3 +207,17 @@ noncomputable def li_to_normal_stream
   (h : ∀ start : Nat, ∃ pos : Nat, pos ≥ start ∧ (s pos).isSome)
   : MyStream 1 T :=
     fun n => find_nth_some n 0 s h
+
+-- filter a normal stream to produce a latency-insensitive stream
+def filter_normal_to_li_stream
+  {T : Type u}
+  (s : MyStream 1 T)
+  (pred : T → Bool)
+  : MyLIStream T :=
+    fun n =>
+      let v: MyVector T 1 := s n
+      let x: T := MyVector.first v
+      if pred x then
+        some (MyVector.singleton x)
+      else
+        none
