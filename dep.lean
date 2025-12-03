@@ -170,7 +170,16 @@ noncomputable def find_next_some
     match h_val : s pos with
     | Option.none =>
       -- This case is impossible given our hypothesis
-      absurd h_val (by sorry)
+      absurd h_val (by
+       have h_some : (s pos).isSome = true := h_pos.2
+       cases h_eq : s pos with
+        | none =>
+          rewrite [h_eq] at h_some
+          simp at h_some
+        | some v =>
+          rewrite [h_val] at h_some
+          simp at h_some
+          )
     | Option.some v => (pos, v)
 
 -- Find the nth Some value by iterating n times
