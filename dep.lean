@@ -161,6 +161,8 @@ def MyLIStream (T : Type u) := Nat → Option (MyVector T 1)
 def li_to_normal_stream
   {T : Type u}
   (s : MyLIStream T)
+  -- Key addition: proof that for every starting position, there exists a Some value at or after it
+  (h : ∀ start : Nat, ∃ pos : Nat, pos ≥ start ∧ (s pos).isSome)
   : MyStream 1 T :=
     -- for each time step n in the output stream,
     -- we need to find the nth non-None (some) time step in the input LI stream,
