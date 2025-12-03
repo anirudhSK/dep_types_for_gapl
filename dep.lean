@@ -158,6 +158,7 @@ def rebatch_smaller_to_larger
 def MyLIStream (T : Type u) := Nat → Option (MyVector T 1)
 
 -- convert a latency-insensitive stream to a normal stream by eliminating the "no data" time steps
+-- there is a lot of variable shadowing in the code below between the outer 's' and inner 's'. TODO: need to fix this.
 noncomputable def li_to_normal_stream
   {T : Type u}
   (s : MyLIStream T)
