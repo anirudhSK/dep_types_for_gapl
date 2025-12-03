@@ -158,7 +158,7 @@ def rebatch_smaller_to_larger
 def MyLIStream (T : Type u) := Nat → Option (MyVector T 1)
 
 -- convert a latency-insensitive stream to a normal stream by eliminating the "no data" time steps
-def li_to_normal_stream
+noncomputable def li_to_normal_stream
   {T : Type u}
   (s : MyLIStream T)
   -- Key addition: proof that for every starting position, there exists a Some value at or after it
