@@ -141,8 +141,6 @@ def replicated_fold
     let final_state: U := replicated_fold_up_to s initial_state f n
     MyVector.singleton final_state
 
-
-
 def rebatch_smaller_to_larger
   {T : Type u}
   {small_batch_size large_batch_size : Nat}
@@ -155,3 +153,39 @@ def rebatch_smaller_to_larger
     fun n =>
       let start := factor * n
       by rw [hh]; exact MyVector.concat_many start factor s
+
+  -- a latency-insensitive stream: a stream that might produce "no data" at some time steps
+def MyLIStream (T : Type u) := Nat → Option (MyVector T 1)
+
+-- convert a latency-insensitive stream to a normal stream by eliminating the "no data" time steps
+def li_to_normal_stream
+  {T : Type u}
+  (s : MyLIStream T)
+  : MyStream 1 T :=
+    -- for each time step n in the output stream,
+    -- we need to find the nth non-None (some) time step in the input LI stream,
+    -- so we need an auxiliary function to find the next non-None time step in s, given a starting time step
+    let rec find_next_some
+      (start : Nat)
+      (s : MyLIStream T)
+      : Nat × (MyVector T 1) :=
+        match s start with
+        | Option.none => find_next_some (start + 1) s
+        | Option.some v => (start, v)
+
+    -- Find the nth Some value by iterating n times
+    let rec find_nth_some
+      (n : Nat) -- the stream index
+      (current_pos : Nat) -- the current position in the LI stream
+      (s : MyLIStream T)
+      : MyVector T 1 :=
+        match n with
+        | 0 =>
+            -- Find the first Some from current_pos
+            let (_, v) := find_next_some current_pos s
+            v
+        | n' + 1 =>
+            -- Find the next Some, then continue searching
+            let (next_pos, _) := find_next_some current_pos s
+            find_nth_some n' (next_pos + 1) s
+    fun n => find_nth_some n 0 s
