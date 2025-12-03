@@ -175,9 +175,11 @@ def li_to_normal_stream
         -- We use Classical.choose to extract the witness from the existence proof
         let pos := Classical.choose (h start)
         let h_pos := Classical.choose_spec (h start)
-        match s start with
-        | Option.none => find_next_some (start + 1) s
-        | Option.some v => (start, v)
+        match h_val : s pos with
+      | Option.none =>
+          -- This case is impossible given our hypothesis
+          absurd h_val (by sorry)
+      | Option.some v => (pos, v)
 
     -- Find the nth Some value by iterating n times
     let rec find_nth_some
