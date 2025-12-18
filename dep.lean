@@ -155,69 +155,31 @@ def rebatch_smaller_to_larger
       by rw [hh]; exact MyVector.concat_many start factor s
 
   -- a latency-insensitive stream: a stream that might produce "no data" at some time steps
-def MyLIStream (T : Type u) := Nat → Option (MyVector T 1)
+def MyLIStream (T : Type u) (batch_size : Nat) := Nat → Option (MyVector T batch_size)
 
--- We need an auxiliary function to find the next non-None time step in s, given a starting time step
-noncomputable def find_next_some
-  (start : Nat)
-  (s : MyLIStream T)
-  (h : ∀ start : Nat, ∃ pos : Nat, pos ≥ start ∧ (s pos).isSome)
-  : Nat × (MyVector T 1) :=
-    -- Find the next Some value starting from 'start'
-    -- We use Classical.choose to extract the witness from the existence proof
-    let pos := Classical.choose (h start)
-    let h_pos := Classical.choose_spec (h start)
-    match h_val : s pos with
-    | Option.none =>
-      -- This case is impossible given our hypothesis
-      absurd h_val (by
-       have h_some : (s pos).isSome = true := h_pos.2
-       cases h_eq : s pos with
-        | none =>
-          rewrite [h_eq] at h_some
-          simp at h_some
-        | some v =>
-          rewrite [h_val] at h_some
-          simp at h_some
-          )
-    | Option.some v => (pos, v)
-
--- Find the nth Some value by iterating n times
-noncomputable def find_nth_some
-  (n : Nat) -- the stream index
-  (current_pos : Nat) -- the current position in the LI stream
-  (s : MyLIStream T)
-  (h : ∀ start : Nat, ∃ pos : Nat, pos ≥ start ∧ (s pos).isSome)
-  : MyVector T 1 :=
-    match n with
-    | 0 =>
-        -- Find the first Some from current_pos
-        let (_, v) := find_next_some current_pos s h
-        v
-    | n' + 1 =>
-        -- Find the next Some, then continue searching
-        let (next_pos, _) := find_next_some current_pos s h
-        find_nth_some n' (next_pos + 1) s h
-
--- convert a latency-insensitive stream to a normal stream by eliminating the "no data" time steps
-noncomputable def li_to_normal_stream
-  {T : Type u}
-  (s : MyLIStream T)
-  -- Key addition: proof that for every starting position, there exists a Some value at or after it
-  (h : ∀ start : Nat, ∃ pos : Nat, pos ≥ start ∧ (s pos).isSome)
-  : MyStream 1 T :=
-    fun n => find_nth_some n 0 s h
-
--- filter a normal stream to produce a latency-insensitive stream
-def filter_normal_to_li_stream
-  {T : Type u}
-  (s : MyStream 1 T)
-  (pred : T → Bool)
-  : MyLIStream T :=
+-- define a function to go from a MyLIStream to a MyStream
+-- that fills in missing data with the last available data
+def current
+  {T}
+  {batch_size : Nat}
+  (li_s : MyLIStream T batch_size)
+  (default_batch : MyVector T batch_size)
+  : MyStream batch_size T :=
+    -- helper function to keep track of last available batch
+    let rec helper
+      (n : Nat)
+      (last_batch : MyVector T batch_size)
+      : MyVector T batch_size :=
+        match li_s n with
+        | some batch => batch
+        | none => last_batch -- "holds" the last available batch
+    -- a stream is a function from nat to something, so define this function
     fun n =>
-      let v: MyVector T 1 := s n
-      let x: T := MyVector.first v
-      if pred x then
-        some (MyVector.singleton x)
+      -- for the first element, if none, use default
+      if n = 0 then
+        match li_s 0 with
+        | some batch => batch
+        | none => default_batch
+      -- for subsequent elements, use helper
       else
-        none
+        helper n (current li_s default_batch (n - 1))
