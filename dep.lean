@@ -1,6 +1,10 @@
-inductive MyVector (α : Type u) : Nat → Type u where
-  | nil  : MyVector α 0
-  | cons : (x : α) → {n : Nat} → MyVector α n → MyVector α (n+1)
+import Init.Data.Vector
+import Init.Data.Vector.Basic
+
+abbrev MyVector (α : Type u) (n : Nat) := Vector α n
+
+def vnil : MyVector α 0 :=
+  (Array.toVector (#[] : Array α ))
 
 def MyVector.length
   {α : Type u}
@@ -15,12 +19,7 @@ def MyVector.concat
   (v1 : MyVector α n)
   (v2 : MyVector α m)
   : MyVector α (n + m) :=
-    match v1 with
-    | MyVector.nil => by simp [Nat.zero_add]; exact v2
-    | MyVector.cons x xs =>
-        by simp [Nat.succ_add]; exact
-        MyVector.cons x (MyVector.concat xs v2)
-
+  Vector.append v1 v2
 
 theorem MyVector.concat_commutative_lengths
   {α : Type u}
@@ -40,7 +39,11 @@ def MyVector.concat_many
   (vecs: Nat → MyVector α n)
   : MyVector α (count * n) :=
     match count with
-    | 0 => by simp; exact MyVector.nil
+    | 0 => by
+       let mul_zero : 0 * n = 0 := by
+          exact Nat.zero_mul n
+       rw [mul_zero];
+       exact vnil
     | count'+1 =>
         let first_batch: MyVector α n := vecs start
         let tail_batches: MyVector α (count' * n) :=
@@ -52,20 +55,11 @@ def MyVector.concat_many
           by simp [Nat.mul_succ,Nat.mul_comm]
         by rw [h]; exact result
 
-
-
 def MyVector.singleton
   {α : Type u}
   (x : α)
   : MyVector α 1 :=
-    MyVector.cons x MyVector.nil
-
-def MyVector.first
-  {α : Type u}
-  (v : MyVector α 1)
-  : α :=
-    match v with
-    | MyVector.cons x MyVector.nil => x
+    Vector.singleton x
 
 -- map function over MyVector
 def MyVector.map
@@ -74,9 +68,7 @@ def MyVector.map
   (v : MyVector α n)
   (f : α → β)
   : MyVector β n :=
-    match v with
-    | MyVector.nil => MyVector.nil
-    | MyVector.cons x xs => MyVector.cons (f x) (MyVector.map xs f)
+    Vector.map f v
 
 def MyVector.foldl
   {α β : Type u}
@@ -85,19 +77,9 @@ def MyVector.foldl
   (current_state : β)
   (f : β → α → β)
   : β :=
-    match v with
-    | MyVector.nil => current_state
-    | MyVector.cons x xs => MyVector.foldl xs (f current_state x) f
+    Vector.foldl f current_state v
 
 #check MyVector
-
-def v1 : MyVector Nat 3 :=
-  MyVector.cons 1 (MyVector.cons 2 (MyVector.cons 3 MyVector.nil))
-
-#check v1
-
-def v2 : MyVector Nat 2 :=
-  MyVector.cons 1 (MyVector.cons 2 MyVector.nil)
 
 def MyStream (batch_size : Nat) (T : Type u) := Nat → MyVector T batch_size
 
