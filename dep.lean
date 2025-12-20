@@ -1,43 +1,41 @@
 import Init.Data.Vector
 import Init.Data.Vector.Basic
 
-abbrev MyVector (α : Type u) (n : Nat) := Vector α n
-
-def vnil : MyVector α 0 :=
+def vnil : Vector α 0 :=
   (Array.toVector (#[] : Array α ))
 
-def MyVector.length
+def Vector.length
   {α : Type u}
   {n : Nat}
-  (v : MyVector α n)
+  (v : Vector α n)
   : Nat :=
     n
 
-def MyVector.concat
+def Vector.concat
   {α : Type u}
   {n m : Nat}
-  (v1 : MyVector α n)
-  (v2 : MyVector α m)
-  : MyVector α (n + m) :=
+  (v1 : Vector α n)
+  (v2 : Vector α m)
+  : Vector α (n + m) :=
   Vector.append v1 v2
 
-theorem MyVector.concat_commutative_lengths
+theorem Vector.concat_commutative_lengths
   {α : Type u}
   {n m : Nat}
-  (v1 : MyVector α n)
-  (v2 : MyVector α m)
-  : MyVector.length (MyVector.concat v1 v2) = MyVector.length (MyVector.concat v2 v1) :=
+  (v1 : Vector α n)
+  (v2 : Vector α m)
+  : Vector.length (Vector.concat v1 v2) = Vector.length (Vector.concat v2 v1) :=
     by
-      simp [MyVector.length]
+      simp [Vector.length]
       rw [Nat.add_comm n m]
 
-def MyVector.concat_many
+def Vector.concat_many
   {α : Type u}
   {n : Nat}
   (start: Nat)
   (count: Nat)
-  (vecs: Nat → MyVector α n)
-  : MyVector α (count * n) :=
+  (vecs: Nat → Vector α n)
+  : Vector α (count * n) :=
     match count with
     | 0 => by
        let mul_zero : 0 * n = 0 := by
@@ -45,43 +43,19 @@ def MyVector.concat_many
        rw [mul_zero];
        exact vnil
     | count'+1 =>
-        let first_batch: MyVector α n := vecs start
-        let tail_batches: MyVector α (count' * n) :=
-          MyVector.concat_many (start + 1) count' vecs
-        let result: MyVector α (count' * n + n) :=
+        let first_batch: Vector α n := vecs start
+        let tail_batches: Vector α (count' * n) :=
+          Vector.concat_many (start + 1) count' vecs
+        let result: Vector α (count' * n + n) :=
           by simp [Nat.add_comm]; exact
-          MyVector.concat first_batch tail_batches
+          Vector.concat first_batch tail_batches
         let h: (count'+1) * n = count' * n + n :=
           by simp [Nat.mul_succ,Nat.mul_comm]
         by rw [h]; exact result
 
-def MyVector.singleton
-  {α : Type u}
-  (x : α)
-  : MyVector α 1 :=
-    Vector.singleton x
+#check Vector
 
--- map function over MyVector
-def MyVector.map
-  {α β : Type u}
-  {n : Nat}
-  (v : MyVector α n)
-  (f : α → β)
-  : MyVector β n :=
-    Vector.map f v
-
-def MyVector.foldl
-  {α β : Type u}
-  {n : Nat}
-  (v : MyVector α n)
-  (current_state : β)
-  (f : β → α → β)
-  : β :=
-    Vector.foldl f current_state v
-
-#check MyVector
-
-def MyStream (batch_size : Nat) (T : Type u) := Nat → MyVector T batch_size
+def MyStream (batch_size : Nat) (T : Type u) := Nat → Vector T batch_size
 
 def batched_map
   {T U : Type u}
@@ -90,8 +64,8 @@ def batched_map
   (s : MyStream batch_size T)
   : MyStream batch_size U :=
     fun n =>
-    let batch: MyVector T batch_size := s n
-    MyVector.map batch f
+    let batch: Vector T batch_size := s n
+    Vector.map f batch
 
 
 def replicated_fold_up_to
@@ -107,8 +81,8 @@ def replicated_fold_up_to
       | 0 => initial_state
       | n'+1 =>
         replicated_fold_up_to s initial_state f n'
-    let batch: MyVector T batch_size := s n
-    let new_state: U := MyVector.foldl batch prev_state f
+    let batch: Vector T batch_size := s n
+    let new_state: U := Vector.foldl f prev_state batch
     new_state
 
 
@@ -121,7 +95,7 @@ def replicated_fold
   : MyStream 1 U :=
     fun n =>
     let final_state: U := replicated_fold_up_to s initial_state f n
-    MyVector.singleton final_state
+    Vector.singleton final_state
 
 def rebatch_smaller_to_larger
   {T : Type u}
@@ -134,10 +108,10 @@ def rebatch_smaller_to_larger
       by rw [Nat.mul_comm, Nat.mul_div_cancel']; exact h
     fun n =>
       let start := factor * n
-      by rw [hh]; exact MyVector.concat_many start factor s
+      by rw [hh]; exact Vector.concat_many start factor s
 
   -- a latency-insensitive stream: a stream that might produce "no data" at some time steps
-def MyLIStream (T : Type u) (batch_size : Nat) := Nat → Option (MyVector T batch_size)
+def MyLIStream (T : Type u) (batch_size : Nat) := Nat → Option (Vector T batch_size)
 
 -- define a function to go from a MyLIStream to a MyStream
 -- that fills in missing data with the last available data
@@ -145,13 +119,13 @@ def current
   {T}
   {batch_size : Nat}
   (li_s : MyLIStream T batch_size)
-  (default_batch : MyVector T batch_size)
+  (default_batch : Vector T batch_size)
   : MyStream batch_size T :=
     -- helper function to keep track of last available batch
     let rec helper
       (n : Nat)
-      (last_batch : MyVector T batch_size)
-      : MyVector T batch_size :=
+      (last_batch : Vector T batch_size)
+      : Vector T batch_size :=
         match li_s n with
         | some batch => batch
         | none => last_batch -- "holds" the last available batch
