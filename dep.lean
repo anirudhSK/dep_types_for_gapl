@@ -55,14 +55,14 @@ def Vector.concat_many
 
 #check Vector
 
-def MyStream (batch_size : Nat) (T : Type u) := Nat → Vector T batch_size
+def LSStream (batch_size : Nat) (T : Type u) := Nat → Vector T batch_size
 
 def batched_map
   {T U : Type u}
   {batch_size : Nat}
   (f : T → U)
-  (s : MyStream batch_size T)
-  : MyStream batch_size U :=
+  (s : LSStream batch_size T)
+  : LSStream batch_size U :=
     fun n =>
     let batch: Vector T batch_size := s n
     Vector.map f batch
@@ -71,7 +71,7 @@ def batched_map
 def replicated_fold_up_to
   {T U : Type u}
   {batch_size : Nat}
-  (s : MyStream batch_size T)
+  (s : LSStream batch_size T)
   (initial_state : U)
   (f : U → T → U)
   (n : Nat)
@@ -89,10 +89,10 @@ def replicated_fold_up_to
 def replicated_fold
   {T U : Type u}
   {batch_size : Nat}
-  (s : MyStream batch_size T)
+  (s : LSStream batch_size T)
   (initial_state : U)
   (f : U → T → U)
-  : MyStream 1 U :=
+  : LSStream 1 U :=
     fun n =>
     let final_state: U := replicated_fold_up_to s initial_state f n
     Vector.singleton final_state
@@ -101,8 +101,8 @@ def rebatch_smaller_to_larger
   {T : Type u}
   {small_batch_size large_batch_size : Nat}
   (h : small_batch_size ∣ large_batch_size)
-  (s : MyStream small_batch_size T)
-  : MyStream large_batch_size T :=
+  (s : LSStream small_batch_size T)
+  : LSStream large_batch_size T :=
     let factor: Nat := large_batch_size / small_batch_size
     let hh: large_batch_size = factor * small_batch_size :=
       by rw [Nat.mul_comm, Nat.mul_div_cancel']; exact h
@@ -111,16 +111,16 @@ def rebatch_smaller_to_larger
       by rw [hh]; exact Vector.concat_many start factor s
 
   -- a latency-insensitive stream: a stream that might produce "no data" at some time steps
-def MyLIStream (T : Type u) (batch_size : Nat) := Nat → Option (Vector T batch_size)
+def LIStream (T : Type u) (batch_size : Nat) := Nat → Option (Vector T batch_size)
 
 -- define a function to go from a MyLIStream to a MyStream
 -- that fills in missing data with the last available data
 def current
   {T}
   {batch_size : Nat}
-  (li_s : MyLIStream T batch_size)
+  (li_s : LIStream T batch_size)
   (default_batch : Vector T batch_size)
-  : MyStream batch_size T :=
+  : LSStream batch_size T :=
     -- helper function to keep track of last available batch
     let rec helper
       (n : Nat)
