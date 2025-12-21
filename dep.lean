@@ -111,14 +111,14 @@ def rebatch_smaller_to_larger
       by rw [hh]; exact Vector.concat_many start factor s
 
   -- a latency-insensitive stream: a stream that might produce "no data" at some time steps
-def LIStream (T : Type u) (batch_size : Nat) := Nat → Option (Vector T batch_size)
+def LIStream (batch_size : Nat) (T : Type u) := Nat → Option (Vector T batch_size)
 
 -- define a function to go from a MyLIStream to a MyStream
 -- that fills in missing data with the last available data
 def current
   {T}
   {batch_size : Nat}
-  (li_s : LIStream T batch_size)
+  (li_s : LIStream batch_size T)
   (default_batch : Vector T batch_size)
   : LSStream batch_size T :=
     -- helper function to keep track of last available batch
@@ -139,3 +139,15 @@ def current
       -- for subsequent elements, use helper
       else
         helper n (current li_s default_batch (n - 1))
+
+def zip_li_ls_streams
+  {T U : Type u}
+  {batch_size : Nat}
+  (li_s1 : LIStream batch_size T)
+  (ls_s2 : LSStream batch_size U)
+  : LSStream batch_size (T × U) :=
+    fun n =>
+      let default_batch : Vector T batch_size := sorry
+      let batch1 := current li_s1 default_batch n
+      let batch2 := ls_s2 n
+      Vector.zip batch1 batch2
